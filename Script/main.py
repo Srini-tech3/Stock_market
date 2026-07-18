@@ -1,3 +1,6 @@
+import argparse
+from datetime import datetime
+
 import pandas as pd
 
 from config import ConfigManager
@@ -9,14 +12,30 @@ from strategies import StrategyEngine
 from trade_tracker import TradeTracker
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run option strategy scanning and generate reports.")
+    parser.add_argument(
+        "--expiry",
+        "-e",
+        help="Expiry date to select the matching option chain CSV file (YYYY-MM-DD).",
+        required=False,
+    )
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
+    expiry_arg = None
+
+    if args.expiry:
+        expiry_arg = datetime.strptime(args.expiry, "%Y-%m-%d").date()
 
     #----------------------------------------------------
     # Load Config
     #----------------------------------------------------
     config_manager = ConfigManager()
     config = config_manager.load_config()
-    csv_file = config_manager.find_option_chain()
+    csv_file = config_manager.find_option_chain(expiry_arg)
     expiry = config_manager.extract_expiry(csv_file)
     trading_day = config_manager.get_trading_date()
     dte = config_manager.get_dte(expiry, trading_day)
@@ -69,13 +88,16 @@ def main():
     oc.convert_numeric()
     oc.validate()
     print(f"\nOption Chain DataFrame has {len(oc.df)} rows and {len(oc.df.columns)} columns")
+    print(f"After OptionChain validate, columns: {list(oc.df.columns)}")
+    print(f"OptionChain sample rows:\n{oc.df.head(3)}")
 
     # ----------------------------------------------------
     # ANALYZER
     # ----------------------------------------------------
     analyzer = Analyzer(oc.df, context)
-
     df = analyzer.run()
+    print(f"Analyzer complete, dataframe shape: {df.shape}")
+    print(f"Analyzer sample rows:\n{df.head(3)}")
     print("ANALYZED OPTION CHAIN")
 
     # ----------------------------------------------------
@@ -83,11 +105,16 @@ def main():
     # ----------------------------------------------------   
     scorer = OptionScorer(df, context)
     df = scorer.run()
+    print(f"Scorer complete, dataframe shape: {df.shape}")
+    print(f"Scorer sample rows:\n{df.head(3)}")
     # ----------------------------------------------------
     # STRATEGY ENGINE
     # ----------------------------------------------------
     strategy_engine = StrategyEngine(df, context)
     bull_put_df, bear_call_df = strategy_engine.run()
+    print(f"Strategy engine complete: bull_put={len(bull_put_df)} rows, bear_call={len(bear_call_df)} rows")
+    print(f"Bull Put sample:\n{bull_put_df.head(3)}")
+    print(f"Bear Call sample:\n{bear_call_df.head(3)}")
 
     #----------------------------------------------------
     # Save Output
@@ -99,7 +126,15 @@ def main():
         expiry_date=context.expiry_date,
     )
 
+    journal_file = tracker.export_journal_tracker(
+        bull_put_df,
+        bear_call_df,
+        expiry_date=context.expiry_date,
+        capital=context.capital,
+    )
+
     print(f"\nOption strategy results exported created to: {output_file}")
+    print(f"Journal tracker exported created to: {journal_file}")
 
 
 if __name__ == "__main__":

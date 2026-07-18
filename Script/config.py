@@ -22,24 +22,44 @@ class ConfigManager:
         df = pd.read_excel(self.config_file, sheet_name="CONFIG")
         return dict(zip(df["Parameter"], df["Value"]))
 
-    def find_option_chain(self):
+    def _extract_expiry_from_name(self, filename):
+        match = re.search(r"_(\d{4}-\d{2}-\d{2})_option_chain", filename, re.IGNORECASE)
+
+        if match:
+            return pd.to_datetime(match.group(1)).date()
+
+        return None
+
+    def find_option_chain(self, expiry_date=None):
         files = list(self.input_dir.glob("*.csv"))
 
         if len(files) == 0:
             raise FileNotFoundError("No CSV file found inside Input folder.")
 
-        if len(files) > 1:
-            raise Exception("Multiple CSV files found. Keep only one.")
+        if expiry_date is not None:
+            matching = [f for f in files if self._extract_expiry_from_name(f.name) == expiry_date]
+            if not matching:
+                available = [self._extract_expiry_from_name(f.name) for f in files]
+                available_str = ", ".join(str(e) for e in available if e is not None)
+                raise FileNotFoundError(
+                    f"No option chain CSV found for expiry {expiry_date}. Available expiries: {available_str}"
+                )
+            if len(matching) > 1:
+                raise Exception(f"Multiple option chain CSV files found for expiry {expiry_date}.")
+            return matching[0]
 
-        return files[0]
+        if len(files) == 1:
+            return files[0]
+
+        raise Exception("Multiple CSV files found. Pass --expiry YYYY-MM-DD to select one.")
 
     def extract_expiry(self, csv_file):
-        match = re.search(r"(\d{4}-\d{2}-\d{2})", csv_file.name)
+        expiry = self._extract_expiry_from_name(csv_file.name)
 
-        if not match:
+        if expiry is None:
             raise Exception("Unable to detect expiry date from filename.")
 
-        return pd.to_datetime(match.group(1)).date()
+        return expiry
 
     def get_trading_date(self):
         today = date.today()

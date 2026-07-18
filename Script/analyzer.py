@@ -130,5 +130,6 @@ class Analyzer:
         self.calculate_distance()
         self.classify_moneyness()
         self.calculate_expected_move()
+        self.market_summary()
 
         return self.df

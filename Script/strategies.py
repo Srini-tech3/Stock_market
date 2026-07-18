@@ -14,6 +14,36 @@ class StrategyEngine:
         self.wing_width = context.wing_width
         self.lot_size = context.lot_size
 
+    def _empty_spread_dataframe(self):
+        return pd.DataFrame(columns=[
+            "Strategy",
+            "SellStrike",
+            "BuyStrike",
+            "WingWidth",
+            "SellPremium",
+            "BuyPremium",
+            "SellBid",
+            "SellAsk",
+            "BuyBid",
+            "BuyAsk",
+            "SellIV",
+            "BuyIV",
+            "SellDelta",
+            "BuyDelta",
+            "SellTheta",
+            "BuyTheta",
+            "SellVega",
+            "BuyVega",
+            "SellPOP",
+            "BuyPOP",
+            "SellSpreadPct",
+            "BuySpreadPct",
+            "SellOI",
+            "BuyOI",
+            "SellVolume",
+            "BuyVolume",
+        ])
+
     #-------------------------------------------------------
     # Get row by strike
     #-------------------------------------------------------
@@ -91,6 +121,9 @@ class StrategyEngine:
 
             })
 
+        if not spreads:
+            return self._empty_spread_dataframe()
+
         return pd.DataFrame(spreads)
     
     #-------------------------------------------------------
@@ -158,6 +191,9 @@ class StrategyEngine:
                 "BuyVolume": buy["CallVolume"]
 
             })
+
+        if not spreads:
+            return self._empty_spread_dataframe()
 
         return pd.DataFrame(spreads)
     
@@ -263,6 +299,9 @@ class StrategyEngine:
 
         if spread_df is None:
             return pd.DataFrame()
+
+        if spread_df.empty:
+            return spread_df.copy()
 
         df = spread_df.copy()
 
