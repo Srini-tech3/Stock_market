@@ -93,7 +93,11 @@ def main():
     # Save Output
     #----------------------------------------------------
     tracker = TradeTracker(config_manager.output_dir)
-    output_file = tracker.export_strategy_results(bull_put_df, bear_call_df)
+    output_file = tracker.export_strategy_results(
+        bull_put_df,
+        bear_call_df,
+        expiry_date=context.expiry_date,
+    )
 
     print(f"\nOption strategy results exported created to: {output_file}")
 
