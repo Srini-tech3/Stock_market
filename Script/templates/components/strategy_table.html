@@ -1,0 +1,140 @@
+<div class="table-card">
+<div class="table-header">
+
+<div class="table-title">
+<h3>Strategy Scanner Results</h3>
+<p>Showing the best strategies generated from the latest option chain analysis.</p>
+</div>
+
+</div>
+
+<div class="table-filters">
+
+<div class="filter-group">
+
+<label>Strategy</label>
+
+<select id="strategyFilter">
+    <option value="all">All Strategies</option>
+    <option value="Bull Put">Bull Put Spread</option>
+    <option value="Bear Call">Bear Call Spread</option>
+</select>
+
+</div>
+
+<div class="filter-group">
+
+<label>Rank</label>
+
+<select id="rankFilter">
+
+<option value="all">All</option>
+<option value="1">Top 1</option>
+<option value="2">Top 2</option>
+<option value="5">Top 5</option>
+<option value="10">Top 10</option>
+
+</select>
+
+</div>
+
+<div class="filter-group">
+    <span id="clearFilters" class="clear-filters">
+        <i class="bi bi-arrow-clockwise"></i>
+        <strong>Reset</strong>
+    </span>
+</div>
+
+<div class="strategy-count">
+
+<span>Total Strategies :</span>
+
+<strong id="strategyCount">{{ strategies|length }}</strong>
+
+</div>
+
+</div>
+<div class="table-responsive">
+<table class="strategy-table" id="strategyTable">
+<thead>
+<tr>
+<th class="sortable" data-column="0" data-type="number">
+    Rank <i class="sort-icon"></i>
+</th>
+<th class="sortable" data-column="1" data-type="date">
+    Expiry Date <i class="sort-icon"></i>
+</th>
+<th class="sortable" data-column="2" data-type="string">
+    Strategy <i class="sort-icon"></i>
+</th>
+<th class="sortable" data-column="3" data-type="string">
+    Option <i class="sort-icon"></i>
+</th>
+<th class="sortable" data-column="4" data-type="number">
+    Sell Strike <i class="sort-icon"></i>
+</th>
+<th class="sortable" data-column="5" data-type="number">
+    Buy Strike <i class="sort-icon"></i>
+</th>
+<th class="sortable" data-column="6" data-type="number">
+    Sell Premium <i class="sort-icon"></i>
+</th>
+<th class="sortable" data-column="7" data-type="number">
+    Buy Premium <i class="sort-icon"></i>
+</th>
+<th class="sortable" data-column="8" data-type="number">
+    Net Credit <i class="sort-icon"></i>
+</th>
+<th class="sortable" data-column="9" data-type="number">
+    Max Profit <i class="sort-icon"></i>
+</th>
+<th class="sortable" data-column="10" data-type="number">
+    Max Loss <i class="sort-icon"></i>
+</th>
+<th class="sortable" data-column="11" data-type="number">
+    Estimated POP <i class="sort-icon"></i>
+</th>
+<th class="sortable" data-column="12" data-type="number">
+    Return on Risk <i class="sort-icon"></i>
+</th>
+<th>Recommendation</th>
+</tr>
+</thead>
+<tbody id="strategyTableBody">
+{% for row in strategies %}
+<tr
+    data-strategy="{{ row.Strategy }}"
+    data-rank="{{ row.Rank }}"
+>
+    <td>
+    {% if row.Rank == 1 %}
+    <span class="rank gold">{{ row.Rank }}</span>
+    {% elif row.Rank == 2 %}
+    <span class="rank silver">{{ row.Rank }}</span>
+    {% else %}
+    <span class="rank bronze">{{ row.Rank }}</span>
+    {% endif %}
+    </td>
+    <td>{{ row.ExpiryDate }}</td>
+    <td>{{ row.Strategy }}</td>
+    <td>{{ row.Option }}</td>
+    <td>{{ row.SellStrike }}</td>
+    <td>{{ row.BuyStrike }}</td>
+    <td>₹{{ "%.2f"|format(row.SellPremium) }}</td>
+    <td>₹{{ "%.2f"|format(row.BuyPremium) }}</td>
+    <td>₹{{ "%.2f"|format(row.NetCredit) }}</td>
+    <td>₹{{ "%.2f"|format(row.MaxProfit) }}</td>
+    <td>₹{{ "%.2f"|format(row.MaxLoss) }}</td>
+    <td>{{ row.EstimatedPOP }}</td>
+    <td>{{ row.ReturnOnRisk }}</td>
+    <td>
+        {% for i in range(row.Recommendation) %}
+            <i class="bi bi-star-fill star"></i>
+        {% endfor %}
+    </td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>

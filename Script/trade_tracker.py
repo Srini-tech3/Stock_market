@@ -1,5 +1,7 @@
-import pandas as pd
+import json
 from pathlib import Path
+
+import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.styles import Border, Font, Side
 from openpyxl.utils import get_column_letter
@@ -84,9 +86,9 @@ class TradeTracker:
         bear_call_report["Option"] = bear_call_report["Strategy"].apply(self._option_type_for_strategy)
 
         if "Rank" in bull_put_report.columns:
-            bull_put_report = bull_put_report.sort_values("Rank").head(2)
+            bull_put_report = bull_put_report.sort_values("Rank")
         if "Rank" in bear_call_report.columns:
-            bear_call_report = bear_call_report.sort_values("Rank").head(2)
+            bear_call_report = bear_call_report.sort_values("Rank")
 
         bull_put_report = bull_put_report.drop(
             columns=[col for col in columns_to_exclude if col in bull_put_report.columns],
@@ -126,6 +128,7 @@ class TradeTracker:
             bull_put_report.to_excel(writer, sheet_name="BullPut", index=False)
             bear_call_report.to_excel(writer, sheet_name="BearCall", index=False)
 
+        self._write_strategy_result_json(bull_put_report, bear_call_report, expiry_date)
         self._format_workbook(output_file)
         return output_file
 
@@ -161,9 +164,9 @@ class TradeTracker:
             report["Strategy"] = None
 
         if "Rank" in report.columns:
-            report = report.sort_values("Rank").head(2)
+            report = report.sort_values("Rank")
         else:
-            report = report.head(2)
+            report = report.copy()
 
         report["ExpiryDate"] = expiry_str
 
@@ -201,7 +204,7 @@ class TradeTracker:
         return report[self.JOURNAL_COLUMNS]
 
     def _merge_journal_rows(self, existing, current):
-        key_columns = [
+        identity_columns = [
             "Rank",
             "ExpiryDate",
             "Strategy",
@@ -219,36 +222,26 @@ class TradeTracker:
         existing = existing.reindex(columns=self.JOURNAL_COLUMNS)
         current = current.reindex(columns=self.JOURNAL_COLUMNS)
 
-        identity_columns = [
-            "Rank",
-            "ExpiryDate",
-            "Strategy",
-            "Option",
-            "SellStrike",
-            "BuyStrike",
-            "SellPremium",
-            "BuyPremium",
-            "EstimatedPOP",
-        ]
+        if existing.empty and current.empty:
+            return pd.DataFrame(columns=self.JOURNAL_COLUMNS)
 
-        existing = existing.drop_duplicates(subset=identity_columns, keep="last")
-        current = current.drop_duplicates(subset=identity_columns, keep="last")
+        merged = pd.concat([existing, current], ignore_index=True)
+        merged = merged.drop_duplicates(subset=identity_columns, keep="last")
 
-        existing_index = existing.set_index(identity_columns)
-        current_index = current.set_index(identity_columns)
+        for _, row in existing.iterrows():
+            if row[identity_columns].isna().any():
+                continue
 
-        merged = existing_index.copy()
+            mask = pd.Series(True, index=merged.index)
+            for col in identity_columns:
+                mask &= merged[col].astype(object).eq(row[col])
 
-        for idx, row in current_index.iterrows():
-            if idx in merged.index:
+            if mask.any():
                 for col in self.MANUAL_COLUMNS:
                     if pd.notna(row[col]):
-                        merged.at[idx, col] = row[col]
-            else:
-                merged = pd.concat([merged, row.to_frame().T], axis=0)
+                        merged.loc[mask, col] = row[col]
 
-        merged = merged.reset_index()
-        return merged[self.JOURNAL_COLUMNS]
+        return merged.reindex(columns=self.JOURNAL_COLUMNS)
 
     def _option_type_for_strategy(self, strategy):
         strategy_value = str(strategy).strip().lower()
@@ -257,6 +250,27 @@ class TradeTracker:
         if strategy_value == "bear call":
             return "CE"
         return None
+
+    def _write_strategy_result_json(self, bull_put_report, bear_call_report, expiry_date=None):
+        payload = {
+            "expiry_date": self._stringify_expiry(expiry_date),
+            "bull_put": self._dataframe_to_records(bull_put_report),
+            "bear_call": self._dataframe_to_records(bear_call_report),
+        }
+
+        result_path = self.output_dir / "result.json"
+        with result_path.open("w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2, ensure_ascii=False)
+
+    def _dataframe_to_records(self, dataframe):
+        if dataframe is None or dataframe.empty:
+            return []
+        return dataframe.where(pd.notna(dataframe), None).to_dict(orient="records")
+
+    def _stringify_expiry(self, expiry_date):
+        if expiry_date is None:
+            return None
+        return expiry_date.isoformat() if hasattr(expiry_date, "isoformat") else str(expiry_date)
 
     def _format_workbook(self, output_file):
         workbook = load_workbook(output_file)

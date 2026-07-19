@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Settings{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<div class="settings-page">
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1>Settings</h1>
+        <p>Customize the appearance of your Option Strategy Analyzer dashboard.</p>
+    </div>
+
+    <!-- Appearance -->
+    <div class="settings-card"></div>
+
+    <!-- Sidebar -->
+    <div class="settings-card"></div>
+
+    <!-- Content -->
+    <div class="settings-card"></div>
+
+    <!-- Cards -->
+    <div class="settings-card"></div>
+
+    <!-- Typography -->
+    <div class="settings-card"></div>
+
+    <!-- Theme -->
+    <div class="settings-card"></div>
+
+    <div class="settings-footer">
+    </div>
+
+</div>
+
+{% endblock %}

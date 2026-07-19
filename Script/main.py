@@ -135,6 +135,8 @@ def main():
 
     print(f"\nOption strategy results exported created to: {output_file}")
     print(f"Journal tracker exported created to: {journal_file}")
+    print(f"\nResult saved to JSON file.")
+    print("\nOption strategy scanning and report generation completed successfully.")
 
 
 if __name__ == "__main__":

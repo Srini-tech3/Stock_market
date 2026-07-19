@@ -393,19 +393,21 @@ class StrategyEngine:
         df = spread_df.copy()
 
         conditions = [
-            df["Rank"] <= 2,
-            df["Rank"] <= 5
+            df["Rank"] == 1,
+            df["Rank"] == 2,
+            df["Rank"] == 3,
         ]
 
         choices = [
-            "⭐⭐ Recommended",
-            "⭐ Good"
+            5,
+            5,
+            3,
         ]
 
         df["Recommendation"] = np.select(
             conditions,
             choices,
-            default="Watch"
+            default=2
         )
 
         return df

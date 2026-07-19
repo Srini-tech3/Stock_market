@@ -1,25 +1,32 @@
 <div class="sidebar">
-    <div class="logo">
-        <img
-        src="{{ url_for('static',
-        filename='image/logo.png') }}">
-    </div>
-    <ul>
-        <li class="active">
-            <i class="bi bi-house-fill"></i>
-            Dashboard
-        </li>
-        <li>
-            <i class="bi bi-table"></i>
-            Results
-        </li>
-        <li>
-            <i class="bi bi-journal-text"></i>
-            Journal
-        </li>
-        <li>
-            <i class="bi bi-gear-fill"></i>
-            Settings
-        </li>
-    </ul>
+
+<div class="logo">
+<img src="{{ url_for('static', filename='image/logo.png') }}">
+</div>
+
+<ul>
+
+<li class="{% if active_page=='dashboard' %}active{% endif %}">
+<a href="{{ url_for('dashboard') }}">
+<i class="bi bi-house-fill"></i>
+<span>Dashboard</span>
+</a>
+</li>
+
+<li class="{% if active_page=='journal' %}active{% endif %}">
+<a href="{{ url_for('journal') }}">
+<i class="bi bi-journal-text"></i>
+<span>Journal</span>
+</a>
+</li>
+
+<li class="{% if active_page=='settings' %}active{% endif %}">
+<a href="{{ url_for('settings') }}">
+<i class="bi bi-gear-fill"></i>
+<span>Settings</span>
+</a>
+</li>
+
+</ul>
+
 </div>

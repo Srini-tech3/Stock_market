@@ -1,0 +1,163 @@
+:root{
+
+    /* Sidebar */
+
+    --sidebar-bg:#EAF7FD;
+    --sidebar-text:#173A63;
+    --sidebar-active:#D5F0FF;
+
+    /* Content */
+
+    --content-bg:#F7FAFC;
+
+    /* Cards */
+
+    --card-bg:#FFFFFF;
+    --card-border:#E4EAF1;
+
+    /* Font */
+
+    --font-family:'Inter',sans-serif;
+
+    --font-size:16px;
+
+}
+
+.settings-page{
+    padding:25px;
+}
+
+.page-header{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    gap:6px;
+    margin-bottom:25px;
+}
+
+.page-header h1{
+    font-family:var(--font-heading);
+    font-size:var(--page-title);
+    font-weight:var(--bold);
+    color:var(--primary);
+    margin-bottom:6px;
+}
+
+.page-header p{
+    font-family:var(--font-body);
+    color:#6B7280;
+    font-size:14px;
+}
+
+.settings-card{
+    background:var(--content-bg);
+    border-radius:12px;
+    padding:25px;
+    margin-bottom:20px;
+    box-shadow:var(--shadow);
+}
+
+.settings-card h2{
+    font-family:var(--font-heading);
+    color:var(--primary);
+    font-size:18px;
+    margin-bottom:20px;
+}
+
+.settings-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:20px 30px;
+}
+
+@media(max-width:900px){
+
+.settings-grid{
+
+grid-template-columns:1fr;
+
+}
+
+}
+
+.setting-item{
+    display:flex;
+    flex-direction:column;
+}
+
+.setting-item label{
+    margin-bottom:8px;
+    font-family:var(--font-body);
+    font-size:14px;
+    font-weight:var(--medium);
+    color:var(--text);
+}
+
+.setting-item input,
+.setting-item select{
+    height:42px;
+    border:1px solid #D6DEE6;
+    border-radius:8px;
+    padding:0 12px;
+    font-size:14px;
+    font-family:var(--font-body);
+    background:#fff;
+}
+
+.setting-item input[type=color]{
+height:45px;
+padding:3px;
+cursor:pointer;
+border-radius:8px;
+}
+
+.setting-item input[type=range]{
+width:100%;
+}
+
+.settings-footer{
+display:flex;
+justify-content:flex-end;
+gap:15px;
+margin-top:30px;
+}
+
+.btn-reset{
+background:#F3F4F6;
+color:#374151;
+border:none;
+padding:12px 25px;
+border-radius:8px;
+cursor:pointer;
+}
+
+.btn-save{
+background:#22C55E;
+color:#fff;
+border:none;
+padding:12px 30px;
+border-radius:8px;
+cursor:pointer;
+}
+
+.btn-save:hover{
+opacity:.9;
+}
+.btn-reset:hover{
+background:#E5E7EB;
+}
+
+.theme-list{
+display:flex;
+gap:15px;
+flex-wrap:wrap;
+}
+
+.theme-item{
+padding:10px 20px;
+border-radius:8px;
+border:1px solid #D9E2EC;
+cursor:pointer;
+background:#fff;
+transition:.2s;
+}

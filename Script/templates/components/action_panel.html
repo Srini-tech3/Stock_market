@@ -8,15 +8,15 @@
     </div>
     <div class="panel-body">
         <div class="form-group">
-            <label>Expiry Date</label>
-            <select id="expiry">
-                <option>Select Expiry</option>
-                <option>2026-07-28</option>
-                <option>2026-08-11</option>
-                <option>2026-08-25</option>
-            </select>
+            <label for="expiryDate">Expiry Date</label>
+            <input
+            type="text"
+            id="expiryDate"
+            class="expiry-input"
+            placeholder="Select Expiry"
+            readonly>
         </div>
-        <button class="btn btn-run">
+        <button id="runAnalysisBtn" class="btn btn-run">
             <i class="bi bi-play-fill"></i>
             Run Analysis
         </button>
