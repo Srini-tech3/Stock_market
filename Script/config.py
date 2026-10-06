@@ -3,6 +3,8 @@ from datetime import date, timedelta
 from openpyxl import load_workbook
 import pandas as pd
 import re
+import warnings
+warnings.filterwarnings('ignore')
 
 
 class ConfigManager:
@@ -74,6 +76,44 @@ class ConfigManager:
 
     def get_dte(self, expiry, trading_day):
         return (expiry - trading_day).days
+
+    def get_spot_price_and_vix(self):
+        """Fetch NIFTY 50 spot price and INDIA VIX from SmartConnect API."""
+        from SmartApi import SmartConnect
+        import pyotp
+
+        API_KEY = "FRfnmfua"
+        USERNAME = "AABY695968"
+        PASSWORD = "3571"
+        TOTP_TOKEN = "YNJD5GCGCJLGK2V5WGTG6M6MOA"
+
+        EXCHANGE = "NSE"
+        MARKET_ITEMS = [
+            ("NIFTY 50", "99926000"),
+            ("INDIA VIX", "99926017"),
+        ]
+
+        data = {}
+        smart_api = SmartConnect(api_key=API_KEY)
+        totp = pyotp.TOTP(TOTP_TOKEN).now()
+
+        if smart_api.generateSession(USERNAME, PASSWORD, totp).get('status'):
+            for symbol, token in MARKET_ITEMS:
+                ltp_data = smart_api.ltpData(EXCHANGE, symbol, token)
+                price = ltp_data.get('data', {}).get('ltp') if isinstance(ltp_data.get('data'), dict) else None
+                data[symbol] = price
+            
+            # Store values in Excel config
+            config_values = {
+                'SpotPrice': data.get('NIFTY 50'),
+                'VIX': data.get('INDIA VIX')
+            }
+            self.update_config_values(config_values)
+            
+            return data
+        else:
+            print("Login failed")
+            return None
 
     def update_config_values(self, values: dict):
         wb = load_workbook(self.config_file)

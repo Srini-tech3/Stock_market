@@ -23,17 +23,20 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
-    args = parse_args()
+def run_analysis(expiry_date=None):
     expiry_arg = None
 
-    if args.expiry:
-        expiry_arg = datetime.strptime(args.expiry, "%Y-%m-%d").date()
+    if expiry_date:
+        expiry_arg = datetime.strptime(
+            expiry_date,
+            "%Y-%m-%d"
+        ).date()
 
     #----------------------------------------------------
     # Load Config
     #----------------------------------------------------
     config_manager = ConfigManager()
+    config_manager.get_spot_price_and_vix()  # Fetch and store SpotPrice & VIX to Excel
     config = config_manager.load_config()
     csv_file = config_manager.find_option_chain(expiry_arg)
     expiry = config_manager.extract_expiry(csv_file)
@@ -140,4 +143,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    run_analysis(args.expiry)
