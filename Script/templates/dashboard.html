@@ -1,11 +1,116 @@
 {% extends 'base.html' %}
-
+{% block title %}Strategy Scanner{% endblock %}
+{% macro opportunity(row, name) %}
+<article class="panel opportunity">
+    <div class="section-heading"><h2>{{ name }}</h2><span class="badge">Rank #{{ row.get('Rank') if row else '—' }} within strategy</span></div>
+    {% if row %}
+    <div class="legs"><span class="sell">SELL {{ row.get('SellStrike')|number(0) }} {{ row.get('Option', '') }}</span><span class="buy">BUY {{ row.get('BuyStrike')|number(0) }} {{ row.get('Option', '') }}</span></div>
+    <div class="mini-grid">
+        <div><span>LTP credit / unit</span><strong>₹{{ row.get('NetCredit')|number }}</strong></div>
+        <div><span>Delta-proxy POP</span><strong>{{ row.get('EstimatedPOP')|number(0) }}%</strong></div>
+        <div><span>Max profit / lot</span><strong class="positive">₹{{ row.get('MaxProfit')|number }}</strong></div>
+        <div><span>Max loss / lot</span><strong class="negative">₹{{ row.get('MaxLoss')|number }}</strong></div>
+    </div>
+    <p class="muted">Highest priority under your existing ranking for this strategy—not a global trade recommendation. Confirm fills and actual margin in Sensibull.</p>
+    {% else %}<div class="empty"><strong>NO TRADE</strong><p>No {{ name }} setup passed the configured rules.</p></div>{% endif %}
+</article>
+{% endmacro %}
 {% block content %}
-
-{% include 'components/dashboard_header.html' %}
-{% include 'components/summary_cards.html' %}
-{% include 'components/action_panel.html' %}
-{% include 'components/strategy_table.html' %}
-
-
+<header class="page-heading">
+    <div><p class="eyebrow">CSV-BASED · PAPER TRADING</p><h1>NIFTY strategy scanner</h1><p class="muted">Your existing rules and per-strategy ranking. Manual practice execution in Sensibull.</p></div>
+    <span class="status {% if status in ['EXPIRED SNAPSHOT', 'DATA ERROR', 'UNKNOWN EXPIRY'] %}status-warning{% endif %}">{{ status }}</span>
+</header>
+{% if error %}<div class="notice error" role="alert">{{ error }}</div>{% endif %}
+{% if last_scan_error %}<div class="notice error" role="alert">Last scan failed: {{ last_scan_error }} Previous results below were retained.</div>{% endif %}
+<section class="panel scan-panel">
+    <div class="section-heading"><h2>Run uploaded option chain</h2><span class="muted">No option-chain download automation</span></div>
+    <p class="muted">Download the expiry after current and next expiry, then place its CSV in <code>Input/</code>. Select that exact expiry below and verify it in Sensibull. The app does not guess the third expiry.</p>
+    <form id="scanForm" class="scan-controls">
+        <label>Uploaded expiry
+            <select id="expiryDate" name="expiry" required>
+                {% set seen = namespace(expiries=[]) %}
+                {% for snapshot in snapshots if not snapshot.expired %}
+                    {% if snapshot.expiry not in seen.expiries %}
+                    <option value="{{ snapshot.expiry }}">{{ snapshot.expiry }} · {{ snapshot.snapshot_time or 'unknown snapshot time' }}</option>
+                    {% set seen.expiries = seen.expiries + [snapshot.expiry] %}
+                    {% endif %}
+                {% endfor %}
+                {% if not seen.expiries %}<option value="">No unexpired CSV found</option>{% endif %}
+            </select>
+        </label>
+        <label>Market reference
+            <select id="marketSource" name="market_source">
+                <option value="csv">CSV spot + configured VIX (recommended)</option>
+                <option value="live">SmartAPI spot/VIX refresh (optional)</option>
+                <option value="config">Manual SpotPrice/VIX from Config.xlsx</option>
+            </select>
+        </label>
+        <button class="button primary" id="runAnalysisBtn" type="submit" {% if not seen.expiries %}disabled{% endif %}>Run practice scan</button>
+        <button class="button" id="refreshBtn" type="button">Refresh view</button>
+    </form>
+    <div id="scanMessage" class="scan-message" role="status" aria-live="polite"></div>
+    <p class="muted">Latest download for the selected expiry is used. Close the journal/report in Excel before scanning.</p>
+</section>
+{% if data %}
+<section class="market-grid" aria-label="Scan overview">
+    <div class="metric"><span>NIFTY Spot</span><strong>{{ market.get('spot')|number }}</strong><small>{{ market.get('spot_source', 'Unavailable in old result') }}</small></div>
+    <div class="metric"><span>CSV futures reference</span><strong>{{ market.get('futures')|number }}</strong><small>Premium / discount {{ market.get('futures_premium')|number }}</small></div>
+    <div class="metric"><span>India VIX</span><strong>{{ market.get('vix')|number }}</strong><small>{{ market.get('vix_source', 'Unavailable in old result') }}</small></div>
+    <div class="metric"><span>ATM / IV</span><strong>{{ market.get('atm')|number(0) }}</strong><small>Shared CSV IV {{ market.get('atm_iv')|number }}%</small></div>
+    <div class="metric"><span>Expiry / DTE</span><strong>{{ data.get('expiry_date', '—') }}</strong><small>{{ data.get('dte', '—') }} days · lot size {{ market.get('lot_size', '—') }}</small></div>
+    <div class="metric"><span>Chain OI PCR</span><strong>{{ market.get('pcr')|number(3) }}</strong><small>Uploaded-strike coverage only</small></div>
+</section>
+<section class="panel metadata">
+    <div><span class="muted">Input</span><code>{{ data.get('source_file', 'Not recorded — rerun scan') }}</code></div>
+    <div><span class="muted">CSV time (filename, timezone unverified)</span><strong>{{ data.get('snapshot_time', 'Unknown') }}</strong></div>
+    <div><span class="muted">Scan completed (UTC)</span><strong>{{ data.get('generated_at', 'Unknown') }}</strong></div>
+    <div><span class="muted">Configured context—not calculated signals</span><strong>{{ market.get('trend', '—') }} · CPR width {{ market.get('cpr_width', '—') }}</strong></div>
+</section>
+{% if warnings %}<details class="panel quality"><summary>Data notes · {{ warnings|length }}</summary><ul>{% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}</ul></details>{% endif %}
+<div class="two-column">{{ opportunity(top_bull[0] if top_bull else none, 'Bull Put Spread') }}{{ opportunity(top_bear[0] if top_bear else none, 'Bear Call Spread') }}</div>
+<section class="panel">
+    <div class="section-heading"><div><h2>Ranked practice opportunities</h2><p class="muted">Ranks restart within each strategy. Top 2 from each are appended to your Excel journal.</p></div><a class="button" href="{{ url_for('download_results') }}">Download report</a></div>
+    <div class="table-filters">
+        <label>Strategy<select id="strategyFilter"><option value="all">Both strategies</option><option value="Bull Put">Bull Put</option><option value="Bear Call">Bear Call</option></select></label>
+        <label>Per-strategy rank<select id="rankFilter"><option value="2">Top 2 (journal selection)</option><option value="all">All eligible</option><option value="1">Top 1</option><option value="5">Top 5</option></select></label>
+        <button id="clearFilters" class="button" type="button">Reset</button><span class="muted"><strong id="strategyCount">{{ strategies|length }}</strong> visible setups</span>
+    </div>
+    <div class="table-scroll">
+    <table class="strategy-table" id="strategyTable"><thead><tr><th><button class="sort-button" data-column="0" data-type="number">Rank ↕</button></th><th><button class="sort-button" data-column="1" data-type="text">Strategy / legs ↕</button></th><th><button class="sort-button" data-column="2" data-type="number">LTP credit / unit ↕</button></th><th><button class="sort-button" data-column="3" data-type="number">Max profit / lot ↕</button></th><th><button class="sort-button" data-column="4" data-type="number">Max loss / lot ↕</button></th><th><button class="sort-button" data-column="5" data-type="number">Breakeven ↕</button></th><th><button class="sort-button" data-column="6" data-type="number">POP proxy ↕</button></th><th><button class="sort-button" data-column="7" data-type="number">RoR ↕</button></th><th>Details</th></tr></thead>
+    <tbody id="strategyTableBody">
+    {% for row in strategies %}
+    <tr data-strategy="{{ row.get('Strategy') }}" data-rank="{{ row.get('Rank') }}">
+        <td><span class="rank">#{{ row.get('Rank') }}</span></td>
+        <td><strong>{{ row.get('Strategy') }}</strong><br><span class="sell">Sell {{ row.get('SellStrike')|number(0) }} {{ row.get('Option', '') }}</span> / <span class="buy">Buy {{ row.get('BuyStrike')|number(0) }} {{ row.get('Option', '') }}</span></td>
+        <td>₹{{ row.get('NetCredit')|number }}</td><td class="positive">₹{{ row.get('MaxProfit')|number }}</td><td class="negative">₹{{ row.get('MaxLoss')|number }}</td><td>{{ row.get('BreakEven')|number }}</td><td>{{ row.get('EstimatedPOP')|number(0) }}%</td><td>{{ row.get('ReturnOnRisk')|number }}%</td>
+        <td><details><summary>View</summary><div class="trade-details">
+            <p>Expiry {{ row.get('ExpiryDate') }} · DTE {{ data.get('dte', '—') }} · width {{ row.get('SpreadWidth')|number(0) }}</p>
+            <table><thead><tr><th>Leg</th><th>LTP</th><th>Delta</th><th>IV</th><th>OI</th><th>Volume</th><th>Spread %</th></tr></thead><tbody>
+                {% for leg in ['Sell', 'Buy'] %}<tr><td>{{ leg }}</td><td>{{ row.get(leg+'Premium')|number }}</td><td>{{ row.get(leg+'Delta')|number }}</td><td>{{ row.get(leg+'IV')|number }}%</td><td>{{ row.get(leg+'OI')|number(0) }}</td><td>{{ row.get(leg+'Volume')|number(0) }}</td><td>{{ row.get(leg+'SpreadPct')|number }}%</td></tr>{% endfor %}
+            </tbody></table>
+            <p>Credit efficiency {{ row.get('CreditEfficiency')|number }}% · safety {{ row.get('SafetyMargin')|number }} points</p>
+            <p>Net Δ {{ row.get('NetDelta')|number }} · Θ {{ row.get('NetTheta')|number }} · Vega {{ row.get('NetVega')|number }}</p>
+            <p>Liquidity ranking = average leg OI {{ row.get('LiquidityScore')|number(0) }}. Hedge liquidity still needs manual review in Sensibull.</p>
+        </div></details></td>
+    </tr>
+    {% else %}<tr><td colspan="9" class="empty"><strong>NO TRADE</strong> — no eligible spreads. No new journal entries were added.</td></tr>{% endfor %}
+    </tbody></table></div>
+    <p class="footnote">{{ data.get('ranking', 'Existing per-strategy ranking') }} LTP-based payoffs before fees/slippage; POP is (1 − |short delta|) × 100, not a backtested win rate. Max loss is not actual broker margin.</p>
+</section>
+{% if data.get('option_chain') %}
+<details class="panel chain-panel"><summary>Uploaded option chain · {{ data.option_chain|length }} strikes</summary>
+    <div class="table-filters"><label class="inline-label"><input type="checkbox" id="showGreeks"> Show IV, Greeks, OI change and spread</label><span class="muted">ATM highlighted · shaded ITM side · missing data shown as —</span></div>
+    <div class="table-scroll"><table class="chain-table" id="chainTable"><thead>
+    <tr><th colspan="6">CALLS (CE)</th><th class="advanced" colspan="7">CE details</th><th>Strike</th><th colspan="6">PUTS (PE)</th><th class="advanced" colspan="7">PE details</th></tr>
+    <tr>{% for side in ['Call', 'Put'] %}{% if side == 'Put' %}<th>Strike</th>{% endif %}<th>LTP</th><th>Bid</th><th>Ask</th><th>Volume</th><th>OI</th><th>State</th><th class="advanced">IV %</th><th class="advanced">Delta</th><th class="advanced">Gamma</th><th class="advanced">Theta</th><th class="advanced">Vega</th><th class="advanced">Δ OI</th><th class="advanced">Spread %</th>{% endfor %}</tr>
+    </thead><tbody>{% for row in data.option_chain %}<tr class="{% if row.get('Strike') == market.get('atm') %}atm-row{% endif %}">
+        {% for side in ['Call', 'Put'] %}{% if side == 'Put' %}<td class="strike">{{ row.get('Strike')|number(0) }}</td>{% endif %}
+        {% for field in ['LTP','Bid','Ask','Volume','OI'] %}<td class="{% if row.get(side+'Moneyness') == 'ITM' %}itm-cell{% endif %}">{{ row.get(side+field)|number(0 if field in ['Volume','OI'] else 2) }}</td>{% endfor %}
+        <td>{{ row.get(side+'Moneyness', '—') }}{% if not row.get(side+'DataValid', true) %}<span class="negative"> !</span>{% endif %}</td>
+        <td class="advanced">{{ row.get('IV')|number }}</td>{% for field in ['Delta','Gamma','Theta','Vega','OIChange','SpreadPct'] %}<td class="advanced">{{ row.get(side+field)|number(5 if field == 'Gamma' else 0 if field == 'OIChange' else 2) }}</td>{% endfor %}
+        {% endfor %}</tr>{% endfor %}</tbody></table></div>
+</details>{% endif %}
+{% else %}<section class="panel empty"><h2>Ready for your uploaded CSV</h2><p>Select your chosen later expiry and run a practice scan. No trade is recommended before analysis.</p></section>{% endif %}
+<footer class="footnote">Manual workflow: CSV download → scanner → top 2 per strategy → Sensibull practice trade → manual margin/P&amp;L in Output/journal_tracker.xlsx.</footer>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>{% endblock %}

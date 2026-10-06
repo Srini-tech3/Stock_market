@@ -55,6 +55,20 @@ class StrategyEngine:
 
         return rows.iloc[0]
     
+    def _valid_leg(self, row, side):
+        if row is None:
+            return False
+        fields = ["IV"] + [side + suffix for suffix in ("LTP", "Bid", "Ask", "Delta", "Theta", "Vega", "OI", "Volume")]
+        try:
+            if not all(np.isfinite(float(row[field])) for field in fields):
+                return False
+            delta_ok = 0 <= row[side + "Delta"] <= 1 if side == "Call" else -1 <= row[side + "Delta"] <= 0
+            return bool(delta_ok and row["IV"] > 0 and row[side + "LTP"] > 0
+                        and 0 < row[side + "Bid"] <= row[side + "Ask"]
+                        and row[side + "OI"] >= 0 and row[side + "Volume"] >= 0)
+        except (KeyError, TypeError, ValueError):
+            return False
+
     #-------------------------------------------------------
     # Generate Bull Put Spreads
     #-------------------------------------------------------
@@ -68,7 +82,7 @@ class StrategyEngine:
             buy_strike = sell_strike - self.wing_width
             buy = self._get_row(buy_strike)
 
-            if buy is None:
+            if not self._valid_leg(sell, "Put") or not self._valid_leg(buy, "Put"):
                 continue
 
             spreads.append({
@@ -105,8 +119,8 @@ class StrategyEngine:
                 "BuyVega": buy["PutVega"],
 
                 # POP
-                "SellPOP": sell["PutPOP"],
-                "BuyPOP": buy["PutPOP"],
+                "SellPOP": sell.get("PutPOP", np.nan),
+                "BuyPOP": buy.get("PutPOP", np.nan),
 
                 # Bid-Ask Spread
                 "SellSpreadPct": sell["PutSpreadPct"],
@@ -139,7 +153,7 @@ class StrategyEngine:
             buy_strike = sell_strike + self.wing_width
             buy = self._get_row(buy_strike)
 
-            if buy is None:
+            if not self._valid_leg(sell, "Call") or not self._valid_leg(buy, "Call"):
                 continue
 
             spreads.append({
@@ -176,8 +190,8 @@ class StrategyEngine:
                 "BuyVega": buy["CallVega"],
 
                 # POP
-                "SellPOP": sell["CallPOP"],
-                "BuyPOP": buy["CallPOP"],
+                "SellPOP": sell.get("CallPOP", np.nan),
+                "BuyPOP": buy.get("CallPOP", np.nan),
 
                 # Bid-Ask Spread
                 "SellSpreadPct": sell["CallSpreadPct"],
@@ -250,22 +264,10 @@ class StrategyEngine:
             df.loc[bear_mask, "NetCredit"]
         )
 
-        df["NetDelta"] = (
-            df["SellDelta"]
-            -
-            df["BuyDelta"]
-        )
-
-        df["NetTheta"] = (
-            df["SellTheta"]
-            -
-            df["BuyTheta"]
-        )
-        df["NetVega"] = (
-            df["SellVega"]
-            -
-            df["BuyVega"]
-        )
+        # A credit spread is short the sold option and long the hedge.
+        df["NetDelta"] = df["BuyDelta"] - df["SellDelta"]
+        df["NetTheta"] = df["BuyTheta"] - df["SellTheta"]
+        df["NetVega"] = df["BuyVega"] - df["SellVega"]
         df["EstimatedPOP"] = (
             1
             -
@@ -334,6 +336,9 @@ class StrategyEngine:
             return spread_df.copy()
 
         df = spread_df.copy()
+        # Mathematical validity, not new trading thresholds or ranking weights.
+        finite = np.isfinite(df[["NetCredit", "SpreadWidth", "MaxProfit", "MaxLoss", "EstimatedPOP", "ReturnOnRisk"]]).all(axis=1)
+        df = df[finite & df["NetCredit"].gt(0) & df["NetCredit"].lt(df["SpreadWidth"]) & df["MaxLoss"].gt(0)]
 
         df = df[df["EstimatedPOP"] >= self.context.min_pop]
 

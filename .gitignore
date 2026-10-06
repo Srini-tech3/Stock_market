@@ -11,3 +11,15 @@ dist/
 # Optional editor folders
 .vscode/
 .idea/
+
+# Local credentials, logs and generated staging/backups
+.env
+.env.*
+!.env.example
+Logs/
+Script/logs/
+Output/backups/
+Output/.workbook-*
+Output/.result-*
+Output/journal_status.json
+.venv/

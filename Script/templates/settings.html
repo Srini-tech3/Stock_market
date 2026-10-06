@@ -1,42 +1,11 @@
-{% extends "base.html" %}
-
-{% block title %}Settings{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
-{% endblock %}
-
+{% extends 'base.html' %}
+{% block title %}Existing Rules{% endblock %}
 {% block content %}
-
-<div class="settings-page">
-
-    <!-- Page Header -->
-    <div class="page-header">
-        <h1>Settings</h1>
-        <p>Customize the appearance of your Option Strategy Analyzer dashboard.</p>
-    </div>
-
-    <!-- Appearance -->
-    <div class="settings-card"></div>
-
-    <!-- Sidebar -->
-    <div class="settings-card"></div>
-
-    <!-- Content -->
-    <div class="settings-card"></div>
-
-    <!-- Cards -->
-    <div class="settings-card"></div>
-
-    <!-- Typography -->
-    <div class="settings-card"></div>
-
-    <!-- Theme -->
-    <div class="settings-card"></div>
-
-    <div class="settings-footer">
-    </div>
-
+<header class="page-heading"><div><p class="eyebrow">EXISTING WORKBOOK RULEBOOK</p><h1>Trading rules &amp; ranking</h1><p class="muted">Rules are reloaded from Config.xlsx for every scan. No new score or ranking weights have been introduced.</p></div></header>
+{% if error %}<div class="notice error" role="alert">{{ error }}</div>{% endif %}
+<section class="panel"><h2>Rule source</h2><p class="file-path"><code>{{ config_path }}</code></p><p class="muted">Edit the CONFIG sheet in Excel and save/close it. The next scan uses those values. This page is read-only.</p></section>
+<div class="two-column">
+<section class="panel"><h2>Current parameters</h2><table><thead><tr><th>Parameter</th><th>Configured value</th></tr></thead><tbody>{% for name, value in values.items() %}<tr><td>{{ name }}</td><td>{{ value }}</td></tr>{% endfor %}</tbody></table></section>
+<section class="panel"><h2>Preserved ranking</h2><ol class="rule-list"><li>Estimated POP (short-delta proxy), highest first</li><li>Credit efficiency, highest first</li><li>Return on risk, highest first</li><li>Safety margin, highest first</li><li>Average leg OI, highest first</li></ol><p class="muted">Ranking remains independent for Bull Put and Bear Call. Rank #1 in one strategy is not ranked against #1 in the other.</p><h2>Existing filters</h2><p class="muted">OTM short strike, configured delta band, minimum OI/volume, acceptable bid/ask spread; then minimum POP, credit, RoR and maximum loss per trade.</p><p class="muted">Spread allowance retains the existing either/or rule: percentage ≤ MaxBidAskPct OR price points ≤ MaxSpreadPoints. Hedge quotes must be valid; hedge liquidity thresholds are not newly imposed.</p><h2>Important interpretation</h2><p class="muted">Trend, CPRWidth and VIX are context values—not newly added strategy gates. AvailableCapital is not actual broker margin. MinimumCredit/MinimumROR default to zero when omitted, but credit must still be positive and below spread width.</p><p class="muted">CSV mode uses recorded spot intrinsic values rather than the workbook's SpotPrice. Shared IV is supplied by your CSV; Greeks are imported, not recalculated.</p></section>
 </div>
-
 {% endblock %}

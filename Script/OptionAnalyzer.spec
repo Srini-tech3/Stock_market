@@ -3,10 +3,10 @@
 
 a = Analysis(
     ['OptionAnalyzer.py'],
-    pathex=[],
+    pathex=['..'],
     binaries=[],
     datas=[('templates', 'templates'), ('static', 'static')],
-    hiddenimports=[],
+    hiddenimports=['SmartApi', 'pyotp'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

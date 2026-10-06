@@ -1,11 +1,15 @@
+from pathlib import Path
+
 import pandas as pd
 import numpy as np
+
+from app_support import log_event
 
 
 class OptionChain:
 
     def __init__(self, csv_file):
-        self.csv_file = csv_file
+        self.csv_file = Path(csv_file)
         self.df = None
 
     # ----------------------------------------------------
@@ -15,7 +19,7 @@ class OptionChain:
 
         self.df = pd.read_csv(self.csv_file)
 
-        print(f"\nLoaded {len(self.df)} rows")
+        log_event("option_chain_loaded", filename=str(self.csv_file.name), rows=len(self.df))
 
         return self.df
 
@@ -28,11 +32,7 @@ class OptionChain:
             raise Exception("Load CSV first.")
 
         # Replace invalid values
-        self.df.replace(
-            ["--", "-", "", " ", "NA", "N/A"],
-            np.nan,
-            inplace=True
-        )
+        self.df = self.df.mask(self.df.isin(["--", "-", "", " ", "NA", "N/A"]), np.nan)
 
         # Remove fully empty rows
         self.df.dropna(how="all", inplace=True)
@@ -63,8 +63,8 @@ class OptionChain:
 
             numeric = pd.to_numeric(cleaned, errors="coerce")
 
-            # Convert only if at least one numeric value exists
-            if numeric.notna().sum() > 0:
+            # All quote columns are numeric even if every value is missing.
+            if col != "Instrument":
                 self.df[col] = numeric
 
         return self.df
@@ -161,12 +161,40 @@ class OptionChain:
                 missing.append(col)
 
         if missing:
+            raise ValueError("CSV is missing required columns: " + ", ".join(missing))
+        if self.df.empty:
+            raise ValueError("The uploaded option chain is empty.")
+        if not np.isfinite(self.df["Strike"]).all() or (self.df["Strike"] <= 0).any():
+            raise ValueError("The option chain contains invalid strikes.")
+        if self.df["Strike"].duplicated().any():
+            raise ValueError("The option chain contains duplicate strikes.")
+        if "Instrument" in self.df and not self.df["Instrument"].astype(str).str.strip().str.upper().eq("NIFTY").all():
+            raise ValueError("Only NIFTY option-chain CSVs are supported.")
+        for side in ("Call", "Put"):
+            essential = ["IV"] + [side + suffix for suffix in ("LTP", "Bid", "Ask", "OI", "Volume", "Delta", "Theta", "Vega")]
+            valid = np.isfinite(self.df[essential]).all(axis=1)
+            valid &= self.df["IV"].gt(0) & self.df[side + "LTP"].gt(0)
+            valid &= self.df[side + "Bid"].gt(0) & self.df[side + "Ask"].ge(self.df[side + "Bid"])
+            valid &= self.df[side + "OI"].ge(0) & self.df[side + "Volume"].ge(0)
+            delta = self.df[side + "Delta"]
+            valid &= delta.between(0, 1) if side == "Call" else delta.between(-1, 0)
+            self.df[side + "DataValid"] = valid
+        log_event("option_chain_validated", rows=len(self.df),
+                  invalid_calls=int((~self.df.CallDataValid).sum()),
+                  invalid_puts=int((~self.df.PutDataValid).sum()))
 
-            print("\nMissing Columns")
-
-            for c in missing:
-                print("   ", c)
-
-            raise Exception("CSV format not supported.")
-
-        print("\nCSV validation successful.")
+    def snapshot_underlying(self, kind="Spot"):
+        """Recover the recorded underlying from ITM intrinsic values, not LTP/model guesses."""
+        prices = []
+        for side in ("Call", "Put"):
+            column = side + "Intrinsic" + ("Spot" if kind == "Spot" else "Future")
+            if column not in self.df:
+                continue
+            rows = self.df.loc[self.df[column].gt(0) & np.isfinite(self.df[column])]
+            values = rows["Strike"] + rows[column] if side == "Call" else rows["Strike"] - rows[column]
+            prices.extend(values[np.isfinite(values) & values.gt(0)].tolist())
+        if not prices:
+            return None
+        if max(prices) - min(prices) > 0.1:
+            raise ValueError(f"CSV intrinsic values imply inconsistent {kind.lower()} prices.")
+        return round(float(np.median(prices)), 2)

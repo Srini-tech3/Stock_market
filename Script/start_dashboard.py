@@ -1,37 +1,19 @@
-import os
+"""Launch the local dashboard in the default browser."""
+import socket
+import subprocess
 import sys
 import time
-import socket
-import logging
-import subprocess
 import webbrowser
+from pathlib import Path
 
-# -----------------------------------------------------
-# Configuration
-# -----------------------------------------------------
+from app_support import configure_logging, log_event
+from config import project_root
 
-HOST = "127.0.0.1"
-PORT = 5000
+HOST, PORT = "127.0.0.1", 5000
 URL = f"http://{HOST}:{PORT}/dashboard"
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-LOG_DIR = os.path.join(BASE_DIR, "..", "Logs")
-APP_FILE = os.path.join(BASE_DIR, "app.py")
 
-os.makedirs(LOG_DIR, exist_ok=True)
-
-logging.basicConfig(
-    filename=os.path.join(LOG_DIR, "launcher.log"),
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
-
-# -----------------------------------------------------
-# Utility Functions
-# -----------------------------------------------------
-
-def is_port_open(host, port):
-    """Return True if Flask is already running."""
+def is_port_open(host=HOST, port=PORT):
     try:
         with socket.create_connection((host, port), timeout=1):
             return True
@@ -40,54 +22,28 @@ def is_port_open(host, port):
 
 
 def wait_for_server(timeout=30):
-    """Wait until Flask starts."""
-    start = time.time()
-
-    while time.time() - start < timeout:
-
-        if is_port_open(HOST, PORT):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if is_port_open():
             return True
-
-        time.sleep(1)
-
+        time.sleep(0.25)
     return False
 
 
-# -----------------------------------------------------
-# Main
-# -----------------------------------------------------
+def main():
+    root = project_root()
+    configure_logging(root)
+    log_event("browser_launcher_started")
+    if not is_port_open():
+        # Keep startup output instead of discarding errors, including missing dependencies.
+        with (root / "Logs" / "server.log").open("a", encoding="utf-8") as output:
+            process = subprocess.Popen([sys.executable, str(Path(__file__).with_name("app.py"))],
+                                       cwd=root, stdout=output, stderr=subprocess.STDOUT)
+        if not wait_for_server() or process.poll() is not None:
+            raise SystemExit("Dashboard could not start. Check Logs/server.log and install requirements.txt.")
+    webbrowser.open(URL)
+    log_event("browser_dashboard_opened")
 
-try:
 
-    logging.info("Launcher started.")
-
-    # Flask already running
-    if is_port_open(HOST, PORT):
-
-        logging.info("Dashboard already running.")
-        webbrowser.open(URL)
-        sys.exit()
-
-    logging.info("Starting Flask server...")
-
-    subprocess.Popen(
-        [sys.executable, APP_FILE],
-        cwd=BASE_DIR,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
-    )
-
-    logging.info("Waiting for Flask...")
-
-    if wait_for_server():
-
-        logging.info("Dashboard is ready.")
-        webbrowser.open(URL)
-
-    else:
-
-        logging.error("Flask failed to start within timeout.")
-
-except Exception as ex:
-
-    logging.exception(ex)
+if __name__ == "__main__":
+    main()

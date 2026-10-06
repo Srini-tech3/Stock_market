@@ -96,12 +96,12 @@ class OptionScorer:
 
         call_spread_ok = (
             (self.df["CallSpreadPct"] <= self.ctx.max_bid_ask)
-            | (self.df["CallSpreadPct"] <= self.ctx.max_spread_points)
+            | ((self.df["CallAsk"] - self.df["CallBid"]) <= self.ctx.max_spread_points)
         )
 
         put_spread_ok = (
             (self.df["PutSpreadPct"] <= self.ctx.max_bid_ask)
-            | (self.df["PutSpreadPct"] <= self.ctx.max_spread_points)
+            | ((self.df["PutAsk"] - self.df["PutBid"]) <= self.ctx.max_spread_points)
         )
 
         self.df["CallLiquid"] = (
@@ -122,7 +122,8 @@ class OptionScorer:
     def calculate_ready_flag(self):
 
         self.df["CallReady"] = (
-            self.df["CallOTM"]
+            self.df.get("CallDataValid", True)
+            & self.df["CallOTM"]
             &
             self.df["CallDeltaEligible"]
             &
@@ -130,7 +131,8 @@ class OptionScorer:
         )
 
         self.df["PutReady"] = (
-            self.df["PutOTM"]
+            self.df.get("PutDataValid", True)
+            & self.df["PutOTM"]
             &
             self.df["PutDeltaEligible"]
             &

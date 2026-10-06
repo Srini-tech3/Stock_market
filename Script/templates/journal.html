@@ -1,18 +1,28 @@
 {% extends 'base.html' %}
-
+{% block title %}Excel Journal{% endblock %}
+{% macro trade_badge(status, label=none) %}
+<span class="trade-status trade-status-{{ status }}" title="{% if status == 'closed' %}Trade control is off: Closed{% elif status == 'open' %}Trade control is on: Open{% else %}Saved selection is unavailable{% endif %}">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/>{% if status == 'closed' %}<path class="status-icon-path" d="m8 12 3 3 5-6"/>{% elif status == 'open' %}<path class="status-icon-path" d="M12 7v5l3 2"/>{% else %}<path class="status-icon-path" d="M12 8v5M12 16h.01"/>{% endif %}</svg>
+    <span class="status-label">{{ label if label is not none else 'Closed' if status == 'closed' else 'Open' if status == 'open' else 'Unavailable' }}</span>
+</span>
+{% endmacro %}
 {% block content %}
-
-<div class="page-header">
-<h1>Trading Journal</h1>
-<p>Track executed strategies and trading history.</p>
-</div>
-
-<div class="content-card">
-
-<h3>Journal</h3>
-
-<p>Trading journal will be displayed here.</p>
-
-</div>
-
+<header class="page-heading"><div><p class="eyebrow">MANUAL PRACTICE JOURNAL</p><h1>Excel trade tracker</h1><p class="muted">Top 2 per strategy are appended after a successful scan. Existing entries are never rewritten.</p></div>{% if headers %}<a class="button" href="{{ url_for('download_journal') }}">Download a copy</a>{% endif %}</header>
+{% if error %}<div class="notice error" role="alert">{{ error }}</div>{% endif %}
+<section class="journal-kpi-grid" aria-label="Trading capital summary" aria-live="polite" aria-atomic="true">
+{% for key, label, detail, tone in [('capital', 'Capital', 'Fixed initial trading capital', ''), ('total_profit', 'Total profit', 'Recorded Profit · all entries', 'positive'), ('total_loss', 'Total loss', 'Recorded Loss · all entries', 'negative'), ('available_capital', 'Available capital', 'Capital + total profit − used capital', ''), ('used_capital', 'Used capital', 'Standalone Margin · Open trades only', '')] %}
+<div class="metric"><span>{{ label }}</span><strong class="{{ tone }}" data-journal-kpi="{{ key }}">{% if kpis[key] is none %}—{% else %}₹{{ kpis[key]|number(2) }}{% endif %}</strong><small>{{ detail }}</small></div>
+{% endfor %}
+</section>
+<p class="footnote">Amounts come from saved Excel entries; blank cells count as zero. Missing columns, formulas or invalid amounts show — for affected totals. Loss is displayed separately, not deducted from available capital.</p>
+<section class="panel"><div class="section-heading"><h2>Workbook preview · {{ rows|length }} entries</h2><span class="muted">Workbook read-only · save Excel, then click Refresh Journal</span><form method="get" action="{{ url_for('journal') }}"><button class="button" id="refreshJournalBtn" type="submit">Refresh Journal</button></form></div>
+{% if headers %}
+<div class="journal-summary" aria-label="Trade status summary"><span id="openTradeCount">{{ trade_badge('open', open_count ~ ' Open') }}</span><span id="closedTradeCount">{{ trade_badge('closed', closed_count ~ ' Closed') }}</span>{% if unknown_count %}{{ trade_badge('unknown', unknown_count ~ ' Unavailable') }}{% endif %}<span class="muted">Control on = Open · off = Closed. New selections default to Open; Profit/Loss does not change status.</span></div>
+<div id="journalStatusMessage" class="scan-message" role="status" aria-live="polite"></div>
+<noscript><p class="notice">Enable JavaScript to change Open/Closed selections.</p></noscript>
+<div class="table-scroll"><table id="journalTable" data-status-url="{{ url_for('update_journal_status') }}"><thead><tr><th>Open</th><th>Trade status</th>{% for header in headers %}<th>{{ header or '' }}</th>{% endfor %}</tr></thead><tbody>
+{% for row in rows %}<tr data-entry-id="{{ entry_ids[loop.index0] }}" data-trade-status="{{ row_statuses[loop.index0] }}"><td><input class="journal-status-toggle" type="checkbox" role="switch" aria-label="Open trade for journal row {{ loop.index }} (on: Open, off: Closed)" title="On: Open · Off: Closed" {% if row_statuses[loop.index0] == 'open' %}checked{% elif row_statuses[loop.index0] == 'unknown' %}disabled{% endif %}></td><td>{{ trade_badge(row_statuses[loop.index0]) }}</td>{% for value in row %}<td>{% if value is none %}—{% elif value is string and value.startswith('=') %}<span class="muted" title="{{ value }}">Excel formula</span>{% elif value is number %}{{ value|number(2 if value % 1 else 0) }}{% else %}{{ value }}{% endif %}</td>{% endfor %}</tr>{% else %}<tr><td colspan="{{ headers|length + 2 }}">No journal entries yet.</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<div class="empty">Run your first scan to create the journal.</div>{% endif %}
+</section>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/journal.js') }}" defer></script>{% endblock %}

@@ -45,7 +45,7 @@ if __name__ == "__main__":
     if wait_for_server():
 
         webview.create_window(
-            title="Option Strategy Analyzer",
+            title="NIFTY Options — Sensibull Practice Scanner",
             url=f"http://{HOST}:{PORT}/dashboard",
             width=1600,
             height=900,
@@ -53,3 +53,5 @@ if __name__ == "__main__":
         )
 
         webview.start()
+    else:
+        raise SystemExit("Dashboard server did not start. Check Logs/application.log and whether port 5000 is available.")

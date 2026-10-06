@@ -1,37 +1,25 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <link rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect"
-        href="https://fonts.gstatic.com"
-        crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Open+Sans:wght@300;400;500;600;700&display=swap"
-        rel="stylesheet">
-    <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
-    <title>Option Analyzer</title>
-    <link rel="stylesheet"
-          href="{{ url_for('static',
-          filename='css/style.css') }}">
-    {% block extra_css %}{% endblock %}
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Practice Scanner{% endblock %} · NIFTY Options</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-<div class="layout">
-    {% include 'components/sidebar.html' %}
-    <div class="main">
-        <div class="content">
-            {% block content %}
-            {% endblock %}
-        </div>
-    </div>
+<div class="app-shell">
+    <aside class="sidebar">
+        <a class="brand" href="{{ url_for('dashboard') }}">NIFTY<span>OPTIONS ANALYZER</span></a>
+        <span class="practice-badge">SENSIBULL PRACTICE ONLY</span>
+        <nav aria-label="Main navigation">
+            <a class="{% if active_page == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">Strategy scanner</a>
+            <a class="{% if active_page == 'journal' %}active{% endif %}" href="{{ url_for('journal') }}">Excel journal</a>
+            <a class="{% if active_page == 'settings' %}active{% endif %}" href="{{ url_for('settings') }}">Existing rules</a>
+        </nav>
+        <p class="sidebar-note">CSV input · Workbook rules<br>No real orders or broker execution.<br>Manually place practice trades in Sensibull.</p>
+    </aside>
+    <main class="content">{% block content %}{% endblock %}</main>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-{% block extra_js %}{% endblock %}
+{% block scripts %}{% endblock %}
 </body>
 </html>

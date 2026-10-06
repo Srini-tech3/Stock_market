@@ -6,4 +6,3 @@ __version__ = "1.5.3"
 __author__ = "ab-smartapi"
 __token__ = "ab-smartapi"
 __author_email__ = "smartapi.sdk@gmail.com"
-

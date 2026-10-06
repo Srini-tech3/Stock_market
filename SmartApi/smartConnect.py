@@ -68,17 +68,9 @@ class SmartConnect(object):
         "api.bseIntraday" : 'rest/secure/angelbroking/marketData/v1/bseIntraday',
     }
 
-    try:
-        clientPublicIp= " " + get('https://api.ipify.org').text
-        if " " in clientPublicIp:
-            clientPublicIp=clientPublicIp.replace(" ","")
-        hostname = socket.gethostname()
-        clientLocalIp=socket.gethostbyname(hostname)
-    except Exception as e:
-        logger.error(f"Exception while retriving IP Address,using local host IP address: {e}")
-    finally:
-        clientPublicIp="106.193.147.98"
-        clientLocalIp="127.0.0.1"
+    # Importing the SDK must not perform an unbounded external network request.
+    clientPublicIp = os.environ.get("ANGEL_CLIENT_PUBLIC_IP", "127.0.0.1")
+    clientLocalIp = "127.0.0.1"
     clientMacAddress=':'.join(re.findall('..', '%012x' % uuid.getnode()))
     accept = "application/json"
     userType = "USER"
@@ -204,7 +196,7 @@ class SmartConnect(object):
             headers["Authorization"] = "Bearer {}".format(auth_header)
 
         if self.debug:
-            log.debug("Request: {method} {url} {params} {headers}".format(method=method, url=url, params=params, headers=headers))
+            log.debug("Request: %s %s", method, route)
     
         try:
             r = requests.request(method,
@@ -218,11 +210,11 @@ class SmartConnect(object):
                                         proxies=self.proxies)
            
         except Exception as e:
-            logger.error(f"Error occurred while making a {method} request to {url}. Headers: {headers}, Request: {params}, Response: {e}")
+            logger.error("SmartAPI transport failure on %s (%s)", route, type(e).__name__)
             raise e
 
         if self.debug:
-            log.debug("Response: {code} {content}".format(code=r.status_code, content=r.content))
+            log.debug("Response HTTP status: %s", r.status_code)
 
         # Validate the content type.
         if "json" in headers["Content-type"]:
@@ -243,7 +235,7 @@ class SmartConnect(object):
                 exp = getattr(ex, data["error_type"], ex.GeneralException)
                 raise exp(data["message"], code=r.status_code)
             if data.get("status",False) is False : 
-                logger.error(f"Error occurred while making a {method} request to {url}. Error: {data['message']}. URL: {url}, Headers: {self.requestHeaders()}, Request: {params}, Response: {data}")
+                logger.error("SmartAPI request failed on %s (HTTP %s)", route, r.status_code)
             return data
         elif "csv" in headers["Content-type"]:
             return r.content
